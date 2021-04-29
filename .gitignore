@@ -4,8 +4,9 @@
 
 /*.sh
 
-/src/**/*.js
+/src/*.js
 /src/**/*.d.ts
+/src/types/*.js
 
 /tests/**/*.js
 /tests/**/*.d.ts
