@@ -1,10 +1,10 @@
 import {MockWriteStreams} from "../../../src/mock-write-streams";
 import {handler} from "../../../src/handler";
 
-test("artifacts <consume artifacts> --needs", async () => {
+test("artifacts-docker-executor <consume artifacts> --needs", async () => {
     const writeStreams = new MockWriteStreams();
     await handler({
-        cwd: "tests/test-cases/artifacts",
+        cwd: "tests/test-cases/artifacts-docker-executor",
         job: ["consume artifacts 🏗️"],
         needs: true,
     }, writeStreams);
