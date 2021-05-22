@@ -11,7 +11,7 @@ test.concurrent("long-running-silent-test-job <test-job>", async () => {
         job: ["test-job"],
     }, writeStreams);
 
-    expect(writeStreams.stdoutLines[5]).toEqual(chalk`{blueBright test-job} {grey > still running...}`);
-    expect(writeStreams.stdoutLines[7]).toEqual(chalk`{blueBright test-job} {greenBright >} Test something`);
+    expect(writeStreams.stdoutLines[4]).toEqual(chalk`{blueBright test-job} {grey > still running...}`);
+    expect(writeStreams.stdoutLines[6]).toEqual(chalk`{blueBright test-job} {greenBright >} Test something`);
     expect(writeStreams.stderrLines).toEqual([]);
 });

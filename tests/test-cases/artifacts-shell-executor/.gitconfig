@@ -1,0 +1,2 @@
+[remote "origin"]
+	url = git@gitlab.com/gcl/artifacts-shell-executor.git

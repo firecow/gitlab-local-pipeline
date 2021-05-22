@@ -7,7 +7,7 @@ import {ExitError} from "./types/exit-error";
 import {Utils} from "./utils";
 import {JobOptions} from "./types/job-options";
 import {WriteStreams} from "./types/write-streams";
-import base32Encode from "base32-encode";
+import {assert} from "./asserts";
 
 export class Job {
 
@@ -130,17 +130,6 @@ export class Job {
         return chalk`{blueBright ${this.name.padEnd(this.jobNamePad)}}`;
     }
 
-    get safeJobName() {
-        return this.name.replace(/[^\w_-]+/g, (match) => {
-            const buffer = new ArrayBuffer(match.length * 2);
-            const bufView = new Uint16Array(buffer);
-            for (let i = 0, len = match.length; i < len; i++) {
-                bufView[i] = match.charCodeAt(i);
-            }
-            return base32Encode(buffer, "Crockford");
-        });
-    }
-
     get imageName(): string | null {
         const image = this.jobData["image"];
         if (!image) {
@@ -221,7 +210,7 @@ export class Job {
     async start(privileged: boolean): Promise<void> {
         const startTime = process.hrtime();
         const writeStreams = this.writeStreams;
-        const safeJobname = this.safeJobName;
+        const safeJobname = Utils.safeJobName(this.name);
 
         this._running = true;
 
@@ -334,10 +323,10 @@ export class Job {
     }
 
     private async execScripts(scripts: string[], privileged: boolean): Promise<number> {
-        const safeJobName = this.safeJobName;
+        const safeJobName = Utils.safeJobName(this.name);
         const outputFilesPath = `${this.cwd}/.gitlab-ci-local/output/${safeJobName}.log`;
         const writeStreams = this.writeStreams;
-        const artifactsFrom = this.needs || this.dependencies;
+        let artifactsFrom = this.needs || this.dependencies;
         let time;
         let endTime;
 
@@ -385,9 +374,10 @@ export class Job {
                 dockerCmd += `docker create -u 0:0 -i ${this.generateInjectSSHAgentOptions()} `;
             }
 
-            this._containerVolumeName = `gcl-${this.safeJobName}-${this.jobId}`;
+            this._containerVolumeName = `gcl-${safeJobName}-${this.jobId}`;
             await Utils.spawn(`docker volume create ${this._containerVolumeName}`, this.cwd);
             dockerCmd += `--volume ${this._containerVolumeName}:/builds/ `;
+            dockerCmd += "-w /builds/ ";
 
             for (const extraHost of this.extraHosts) {
                 dockerCmd += `--add-host=${extraHost} `;
@@ -439,53 +429,54 @@ export class Job {
             this.refreshLongRunningSilentTimeout(writeStreams);
             endTime = process.hrtime(time);
             writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied source to container} in {magenta ${prettyHrtime(endTime)}}\n`);
-
-            if (artifactsFrom === null || artifactsFrom.length > 0) {
-                time = process.hrtime();
-                await fs.mkdirp(`${this.cwd}/.gitlab-ci-local/artifacts/`);
-                await Utils.spawn(`docker cp ${this.cwd}/.gitlab-ci-local/artifacts/. ${this._containerId}:/builds/`);
-                this.refreshLongRunningSilentTimeout(writeStreams);
-                endTime = process.hrtime(time);
-                writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied artifacts to container} in {magenta ${prettyHrtime(endTime)}}\n`);
-            }
-
-            await Utils.spawn(`docker run --rm -w /builds/ -v ${this._containerVolumeName}:/builds/ debian:stable-slim bash -c "chown 0:0 -R . && chmod a+rw -R ."`);
         }
 
-        if (this.imageName === null && (artifactsFrom === null || artifactsFrom.length > 0)) {
+        artifactsFrom = artifactsFrom ?? [];
+        if (artifactsFrom.length > 0) {
             time = process.hrtime();
-            await fs.mkdirp(`${this.cwd}/.gitlab-ci-local/artifacts/`);
-            await Utils.spawn(`rsync -a ${this.cwd}/.gitlab-ci-local/artifacts/. ${this.cwd}`);
+            const promises = [];
+            for (const artifactFrom of artifactsFrom) {
+                const artifactFromSafeName = Utils.safeJobName(artifactFrom);
+                if (this.imageName) {
+                    promises.push(Utils.spawn(`docker cp ${this.cwd}/.gitlab-ci-local/artifacts/${artifactFromSafeName}/. ${this._containerId}:/builds/.`));
+                } else {
+                    const ensureDir = await fs.pathExists(`${this.cwd}/.gitlab-ci-local/artifacts/${artifactFromSafeName}`);
+                    assert(ensureDir, chalk`Artifact cannot be copied. Did you run {blueBright ${this.name}}, before running {blueBright ${artifactFrom}}?`);
+                    promises.push(Utils.spawn(`cp -r --parents . ../../builds/${safeJobName}`, `${this.cwd}/.gitlab-ci-local/artifacts/${artifactFromSafeName}`));
+                }
+            }
+            await Promise.all(promises);
+            this.refreshLongRunningSilentTimeout(writeStreams);
             endTime = process.hrtime(time);
-            writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied artifacts to cwd} in {magenta ${prettyHrtime(endTime)}}\n`);
+            writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied artifacts to build folder} in {magenta ${prettyHrtime(endTime)}}\n`);
         }
 
         let cmd = "set -eo pipefail\n";
         cmd += "exec 0< /dev/null\n";
 
-        if (this.imageName) {
-            cmd += "cd /builds/\n";
-        } else {
+        if (!this.imageName) {
             for (const [key, value] of Object.entries(this.expandedVariables)) {
                 cmd += `export ${key}="${String(value).trim()}"\n`;
             }
+        } else {
+            await Utils.spawn(`docker run --rm -w /builds/ -v ${this._containerVolumeName}:/builds/ debian:stable-slim bash -c "chown 0:0 -R . && chmod a+rw -R ."`);
         }
 
         cmd += this.generateScriptCommands(scripts);
 
         cmd += "exit 0\n";
 
-        await fs.outputFile(`${this.cwd}/.gitlab-ci-local/scripts/${this.safeJobName}`, cmd, "utf-8");
-        await fs.chmod(`${this.cwd}/.gitlab-ci-local/scripts/${this.safeJobName}`, "0755");
+        await fs.outputFile(`${this.cwd}/.gitlab-ci-local/builds/${safeJobName}/gcl-init`, cmd, "utf-8");
+        await fs.chmod(`${this.cwd}/.gitlab-ci-local/builds/${safeJobName}/gcl-init`, "0755");
 
         if (this.imageName) {
-            await Utils.spawn(`docker cp .gitlab-ci-local/scripts/. ${this._containerId}:/gcl-scripts/`, this.cwd);
+            await Utils.spawn(`docker cp .gitlab-ci-local/builds/${safeJobName}/gcl-init ${this._containerId}:/builds/`, this.cwd);
         }
 
         const cp = childProcess.spawn(this._containerId ? `docker start --attach -i ${this._containerId}` : "bash", {
             shell: "bash",
             stdio: ["pipe", "pipe", "pipe"],
-            cwd: this.cwd,
+            cwd: `${this.cwd}/.gitlab-ci-local/builds/${safeJobName}`,
         });
 
         const outFunc = (e: any, stream: (txt: string) => void, colorize: (str: string) => string) => {
@@ -511,28 +502,28 @@ export class Job {
             cp.on("exit", (code) => setTimeout(() => resolve(code ?? 0), 10));
             cp.on("error", (err) => setTimeout(() => reject(err), 10));
 
-            if (this.imageName) {
-                cp.stdin.end(`/gcl-scripts/${this.safeJobName}`);
-            } else {
-                cp.stdin.end(`./.gitlab-ci-local/scripts/${this.safeJobName}`);
-            }
+            cp.stdin.end("./gcl-init");
         });
 
-        if (this.imageName && this.artifacts.paths.length > 0) {
-            let cpCmd = "shopt -s globstar\nmkdir -p /artifacts/\n";
+        if (this.artifacts.paths.length > 0) {
+            let cpCmd = `shopt -s globstar\nmkdir -p ../../artifacts/${safeJobName}\n`;
             for (const artifactPath of this.artifacts.paths) {
                 const expandedPath = Utils.expandText(artifactPath, this.expandedVariables);
-                cpCmd += `echo Started copying ${expandedPath} to /artifacts\n`;
-                cpCmd += "cd /builds/\n";
-                cpCmd += `cp -r --parents ${expandedPath} /artifacts\n`;
-                cpCmd += `echo Done copying ${expandedPath} to /artifacts\n`;
+                cpCmd += `echo Started copying builds/${expandedPath} to artifacts\n`;
+                cpCmd += `cp -r --parents ${expandedPath} ../../artifacts/${safeJobName}\n`;
+                cpCmd += `echo Done copying ${expandedPath} to ../../artifacts/${safeJobName}\n`;
             }
 
             time = process.hrtime();
-            const {stdout: artifactsContainerId} = await Utils.spawn(`docker create -i -v ${this._containerVolumeName}:/builds/ debian:stable-slim bash -c "${cpCmd}"`, this.cwd);
-            this._artifactsContainerId = artifactsContainerId.replace(/\r?\n/g, "");
-            await Utils.spawn(`docker start ${this._artifactsContainerId} --attach`);
-            await Utils.spawn(`docker cp ${this._artifactsContainerId}:/artifacts .gitlab-ci-local/.`, this.cwd);
+            await fs.ensureDir(`${this.cwd}/.gitlab-ci-local/artifacts/${safeJobName}`);
+            if (this.imageName) {
+                const {stdout: artifactsContainerId} = await Utils.spawn(`docker create -i -w /builds/${safeJobName} -v ${this._containerVolumeName}:/builds/${safeJobName} debian:stable-slim bash -c "${cpCmd}"`, this.cwd);
+                this._artifactsContainerId = artifactsContainerId.replace(/\r?\n/g, "");
+                await Utils.spawn(`docker start ${this._artifactsContainerId} --attach`);
+                await Utils.spawn(`docker cp ${this._artifactsContainerId}:/artifacts/${safeJobName}/. .gitlab-ci-local/artifacts/${safeJobName}/.`, this.cwd);
+            } else {
+                await Utils.spawn(`${cpCmd}`, `${this.cwd}/.gitlab-ci-local/builds/${safeJobName}`);
+            }
             endTime = process.hrtime(time);
             writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright saved artifacts} in {magenta ${prettyHrtime(endTime)}}\n`);
         }

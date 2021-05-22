@@ -72,7 +72,7 @@ export async function handler(argv: any, writeStreams: WriteStreams): Promise<Re
                 delete gitlabData[jobName];
             }
         }
-        writeStreams.stdout(`---\n${yaml.dump(gitlabData)}`);
+        writeStreams.stdout(`---\n${yaml.dump(gitlabData, { lineWidth: 160 })}`);
     } else if (argv.list != null) {
         checkFolderAndFile(cwd, argv.file);
         const pipelineIid = await state.getPipelineIid(cwd);

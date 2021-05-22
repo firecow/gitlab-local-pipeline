@@ -11,16 +11,16 @@ test("long-running-silent-build-job <build-job>", async () => {
         job: ["build-job"],
     }, writeStreams);
 
-    expect(writeStreams.stdoutLines[6]).toEqual(chalk`{blueBright build-job} {greenBright >} 1`);
-    expect(writeStreams.stdoutLines[9]).toEqual(chalk`{blueBright build-job} {greenBright >} 2`);
-    expect(writeStreams.stdoutLines[12]).toEqual(chalk`{blueBright build-job} {greenBright >} 3`);
-    expect(writeStreams.stdoutLines[15]).toEqual(chalk`{blueBright build-job} {greenBright >} 4`);
-    expect(writeStreams.stdoutLines[18]).toEqual(chalk`{blueBright build-job} {greenBright >} 5`);
-    expect(writeStreams.stdoutLines[21]).toEqual(chalk`{blueBright build-job} {greenBright >} 6`);
-    expect(writeStreams.stdoutLines[24]).toEqual(chalk`{blueBright build-job} {greenBright >} 7`);
-    expect(writeStreams.stdoutLines[27]).toEqual(chalk`{blueBright build-job} {greenBright >} 8`);
-    expect(writeStreams.stdoutLines[30]).toEqual(chalk`{blueBright build-job} {greenBright >} 9`);
-    expect(writeStreams.stdoutLines[33]).toEqual(chalk`{blueBright build-job} {greenBright >} 10`);
-    expect(writeStreams.stdoutLines[36]).toEqual(chalk`{blueBright build-job} {greenBright >} 11`);
+    expect(writeStreams.stdoutLines[5]).toEqual(chalk`{blueBright build-job} {greenBright >} 1`);
+    expect(writeStreams.stdoutLines[8]).toEqual(chalk`{blueBright build-job} {greenBright >} 2`);
+    expect(writeStreams.stdoutLines[11]).toEqual(chalk`{blueBright build-job} {greenBright >} 3`);
+    expect(writeStreams.stdoutLines[14]).toEqual(chalk`{blueBright build-job} {greenBright >} 4`);
+    expect(writeStreams.stdoutLines[17]).toEqual(chalk`{blueBright build-job} {greenBright >} 5`);
+    expect(writeStreams.stdoutLines[20]).toEqual(chalk`{blueBright build-job} {greenBright >} 6`);
+    expect(writeStreams.stdoutLines[23]).toEqual(chalk`{blueBright build-job} {greenBright >} 7`);
+    expect(writeStreams.stdoutLines[26]).toEqual(chalk`{blueBright build-job} {greenBright >} 8`);
+    expect(writeStreams.stdoutLines[29]).toEqual(chalk`{blueBright build-job} {greenBright >} 9`);
+    expect(writeStreams.stdoutLines[32]).toEqual(chalk`{blueBright build-job} {greenBright >} 10`);
+    expect(writeStreams.stdoutLines[35]).toEqual(chalk`{blueBright build-job} {greenBright >} 11`);
     expect(writeStreams.stderrLines).toEqual([]);
 });

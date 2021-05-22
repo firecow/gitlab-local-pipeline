@@ -1,0 +1,27 @@
+---
+produce-artifacts:
+  stage: build
+  script:
+    # Make sure build folder is clean from previous runs.
+    - if [ -f file1 ]; then exit 1; fi
+    # Generate artifacts to be consumed
+    - touch file1 file2
+    - mkdir -p path/to/deep/folder
+    - touch path/to/deep/folder/file3
+    - mkdir -p another-path/to/deep/empty-folder
+  artifacts:
+    paths:
+      - file1
+      - file2
+      - path/to/deep/folder
+      - another-path/to/deep/empty-folder
+
+consume-artifacts:
+  stage: test
+  needs: [produce-artifacts]
+  dependencies: [produce-artifacts]
+  script:
+    - if [ ! -f file1 ]; then exit 1; fi
+    - if [ ! -f file2 ]; then exit 1; fi
+    - if [ ! -f path/to/deep/folder/file3 ]; then exit 1; fi
+    - if [ ! -d another-path/to/deep/empty-folder ]; then exit 1; fi

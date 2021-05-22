@@ -4,6 +4,7 @@ import {ExitError} from "./types/exit-error";
 import {Job} from "./job";
 import {assert} from "./asserts";
 import * as fs from "fs-extra";
+import base32Encode from "base32-encode";
 
 export class Utils {
 
@@ -64,6 +65,17 @@ export class Utils {
             return firstNumber && firstNumber[0] ? firstNumber[0] : null;
         }
         return "0";
+    }
+
+    static safeJobName(name: string) {
+        return name.replace(/[^\w_-]+/g, (match) => {
+            const buffer = new ArrayBuffer(match.length * 2);
+            const bufView = new Uint16Array(buffer);
+            for (let i = 0, len = match.length; i < len; i++) {
+                bufView[i] = match.charCodeAt(i);
+            }
+            return base32Encode(buffer, "Crockford");
+        });
     }
 
     static printJobNames(stream: (txt: string) => void, job: { name: string }, i: number, arr: { name: string }[]) {
