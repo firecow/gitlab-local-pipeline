@@ -384,7 +384,6 @@ export class Job {
             writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied source to container} in {magenta ${prettyHrtime(endTime)}}\n`);
         }
 
-        console.log(this.producers);
         if (this.producers.length > 0) {
             time = process.hrtime();
             const promises = [];
