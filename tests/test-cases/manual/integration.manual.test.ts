@@ -127,7 +127,7 @@ test("manual --manual <pre-job>", async () => {
         chalk`{blueBright test-job  } {greenBright >} Test something`,
         chalk`{blueBright deploy-job} {greenBright >} Deploy something`,
     ];
-    expect(writeStreams.stdoutLines[5]).toBe(chalk`{blueBright pre-job   } {greenBright >} Hello, pre job manual!`);
+    expect(writeStreams.stdoutLines[4]).toBe(chalk`{blueBright pre-job   } {greenBright >} Hello, pre job manual!`);
     expect(writeStreams.stdoutLines).toEqual(expect.arrayContaining(expected));
     expect(writeStreams.stderrLines).toEqual([]);
 });

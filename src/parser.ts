@@ -271,8 +271,8 @@ export class Parser {
         // Generate jobs and put them into stages
         Utils.forEachRealJob(gitlabData, (jobName, jobData) => {
             assert(this._gitData != null, "GitRemote isn't set in parser initJobs function");
-            const foundStage = this.stages.includes(jobData.stage);
-            assert(foundStage, chalk`{yellow stage:${jobData.stage}} not found for {blueBright ${jobName}}`);
+            const foundStage = this.stages.includes(jobData.stage ?? "test");
+            assert(foundStage, chalk`{yellow stage:${jobData.stage ?? "test"}} not found for {blueBright ${jobName}}`);
 
             const projectDir = jobData.imageName ? "/builds/" : `${cwd}`;
             const jobId = Math.floor(Math.random() * 1000000);
