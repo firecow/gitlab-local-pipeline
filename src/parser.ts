@@ -268,22 +268,33 @@ export class Parser {
 
         this._gitlabData = gitlabData;
 
-
         // Generate jobs and put them into stages
         Utils.forEachRealJob(gitlabData, (jobName, jobData) => {
             assert(this._gitData != null, "GitRemote isn't set in parser initJobs function");
-            const job = new Job({
+
+            const projectDir = jobData.imageName ? "/builds/" : `${cwd}`;
+            const jobId = Math.floor(Math.random() * 1000000);
+            const predefinedVariables = Utils.getPredefinedVariables(jobName, jobData.stage, jobId, pipelineIid, projectDir, this._gitData);
+            const envs = {...gitlabData.variables || {}, ...jobData.variables || {}, ...predefinedVariables, ...process.env};
+            const expandedGlobalVariables = Utils.expandVariables(gitlabData.variables || {}, envs);
+            const expandedJobVariables = Utils.expandVariables(jobData.variables || {}, envs);
+            const expandedVariables = {...expandedGlobalVariables, ...expandedJobVariables, ...this._homeVariables, ...predefinedVariables};
+            const jobNamePad = this.jobNamePad;
+            const producers = jobData.needs || jobData.dependencies || [];
+
+            const jobOptions = {
                 extraHosts,
                 writeStreams,
-                name: jobName,
-                namePad: this.jobNamePad,
-                homeVariables: this._homeVariables,
-                data: jobData,
+                jobName,
+                jobData,
                 cwd,
-                globals: gitlabData,
+                jobId,
                 pipelineIid,
-                gitData: this._gitData,
-            });
+                expandedVariables,
+                jobNamePad,
+                producers,
+            };
+            const job = new Job(jobOptions);
             const foundStage = this.stages.includes(job.stage);
             assert(foundStage, chalk`{yellow stage:${job.stage}} not found for {blueBright ${job.name}}`);
             this._jobs.set(jobName, job);

@@ -5,6 +5,8 @@ import {Job} from "./job";
 import {assert} from "./asserts";
 import * as fs from "fs-extra";
 import base32Encode from "base32-encode";
+import camelCase from "camelcase";
+import {GitData} from "./types/git-data";
 
 export class Utils {
 
@@ -166,6 +168,44 @@ export class Utils {
         await fs.ensureDir(`${cwd}/.gitlab-ci-local/builds/${target}`);
         await Utils.spawn(`rsync -ah --delete --exclude-from=<(git -C . ls-files --exclude-standard -oi --directory) --exclude .gitlab-ci-local/ ./ .gitlab-ci-local/builds/${target}/`, cwd);
         return {hrdeltatime: process.hrtime(time)};
+    }
+
+    static getPredefinedVariables( jobName: string, jobStage: string, jobId: number, pipelineIid: number, projectDir: string, gitData: GitData): { [key: string]: string } {
+        return {
+            GITLAB_USER_LOGIN: gitData.user["GITLAB_USER_LOGIN"],
+            GITLAB_USER_EMAIL: gitData.user["GITLAB_USER_EMAIL"],
+            GITLAB_USER_NAME: gitData.user["GITLAB_USER_NAME"],
+            CI_COMMIT_SHORT_SHA: gitData.commit.SHORT_SHA, // Changes
+            CI_COMMIT_SHA: gitData.commit.SHA,
+            CI_PROJECT_DIR: projectDir,
+            CI_PROJECT_NAME: gitData.remote.project,
+            CI_PROJECT_TITLE: `${camelCase(gitData.remote.project)}`,
+            CI_PROJECT_PATH: `${gitData.remote.group}/${camelCase(gitData.remote.project)}`,
+            CI_PROJECT_PATH_SLUG: `${gitData.remote.group.replace(/\//g, "-")}-${gitData.remote.project}`,
+            CI_PROJECT_NAMESPACE: `${gitData.remote.group}`,
+            CI_PROJECT_VISIBILITY: "internal",
+            CI_PROJECT_ID: "1217",
+            CI_COMMIT_REF_PROTECTED: "false",
+            CI_COMMIT_BRANCH: gitData.commit.REF_NAME, // Not available in merge request or tag pipelines
+            CI_COMMIT_REF_NAME: gitData.commit.REF_NAME, // Tag or branch name
+            CI_COMMIT_REF_SLUG: gitData.commit.REF_NAME.replace(/[^a-z0-9]+/ig, "-").replace(/^-/, "").replace(/-$/, "").slice(0, 63).toLowerCase(),
+            CI_COMMIT_TITLE: "Commit Title", // First line of commit message.
+            CI_COMMIT_MESSAGE: "Commit Title\nMore commit text", // Full commit message
+            CI_COMMIT_DESCRIPTION: "More commit text",
+            CI_PIPELINE_SOURCE: "push",
+            CI_JOB_ID: `${jobId}`,
+            CI_PIPELINE_ID: `${pipelineIid + 1000}`,
+            CI_PIPELINE_IID: `${pipelineIid}`,
+            CI_SERVER_HOST: `${gitData.remote.domain}`,
+            CI_SERVER_URL: `https://${gitData.remote.domain}:443`,
+            CI_API_V4_URL: `https://${gitData.remote.domain}/api/v4`,
+            CI_PROJECT_URL: `https://${gitData.remote.domain}/${gitData.remote.group}/${gitData.remote.project}`,
+            CI_JOB_URL: `https://${gitData.remote.domain}/${gitData.remote.group}/${gitData.remote.project}/-/jobs/${jobId}`, // Changes on rerun.
+            CI_PIPELINE_URL: `https://${gitData.remote.domain}/${gitData.remote.group}/${gitData.remote.project}/pipelines/${pipelineIid}`,
+            CI_JOB_NAME: `${jobName}`,
+            CI_JOB_STAGE: `${jobStage}`,
+            GITLAB_CI: "false",
+        };
     }
 
 }

@@ -1,15 +1,14 @@
-import {GitData} from "./git-data";
 import {WriteStreams} from "./write-streams";
 
 export interface JobOptions {
     writeStreams: WriteStreams;
-    data: any;
-    name: string;
-    namePad: number;
+    jobData: any;
+    jobName: string;
+    jobNamePad: number;
     cwd: string;
-    globals: any;
+    expandedVariables: { [name: string]: string };
     pipelineIid: number;
-    gitData: GitData;
+    jobId: number;
     extraHosts: string[];
-    homeVariables: { [name: string]: string };
+    producers: string[];
 }

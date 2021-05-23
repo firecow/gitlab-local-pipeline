@@ -2,7 +2,6 @@ import chalk from "chalk";
 import * as childProcess from "child_process";
 import * as fs from "fs-extra";
 import prettyHrtime from "pretty-hrtime";
-import camelCase from "camelcase";
 import {ExitError} from "./types/exit-error";
 import {Utils} from "./utils";
 import {JobOptions} from "./types/job-options";
@@ -20,7 +19,7 @@ export class Job {
     readonly name: string;
     readonly jobNamePad: number;
     readonly needs: string[] | null;
-    readonly dependencies: string[] | null;
+    readonly producers: string[];
     readonly environment?: { name: string; url: string | null };
     readonly jobId: number;
     readonly cwd: string;
@@ -45,70 +44,25 @@ export class Job {
     private readonly extraHosts: string[];
 
     constructor(opt: JobOptions) {
-        const jobData = opt.data;
-        const gitData = opt.gitData;
-        const globals = opt.globals;
-        const homeVariables = opt.homeVariables;
+        const jobData = opt.jobData;
 
         this.extraHosts = opt.extraHosts;
         this.writeStreams = opt.writeStreams;
-        this.jobNamePad = opt.namePad;
-        this.name = opt.name;
+        this.jobNamePad = opt.jobNamePad;
+        this.name = opt.jobName;
         this.cwd = opt.cwd;
-        this.jobId = Math.floor(Math.random() * 1000000);
-        this.jobData = opt.data;
+        this.jobId = opt.jobId;
+        this.jobData = jobData;
         this.pipelineIid = opt.pipelineIid;
+        this.producers = opt.producers;
 
         this.when = jobData.when || "on_success";
         this.allowFailure = jobData.allow_failure ?? false;
         this.needs = jobData.needs || null;
-        this.dependencies = jobData.dependencies || null;
         this.rules = jobData.rules || null;
         this.environment = typeof jobData.environment === "string" ? {name: jobData.environment} : jobData.environment;
         this.cache = jobData.cache || null;
-
-        const predefinedVariables = {
-            GITLAB_USER_LOGIN: gitData.user["GITLAB_USER_LOGIN"],
-            GITLAB_USER_EMAIL: gitData.user["GITLAB_USER_EMAIL"],
-            GITLAB_USER_NAME: gitData.user["GITLAB_USER_NAME"],
-            CI_COMMIT_SHORT_SHA: gitData.commit.SHORT_SHA, // Changes
-            CI_COMMIT_SHA: gitData.commit.SHA,
-            CI_PROJECT_DIR: this.imageName ? "/builds/" : `${this.cwd}`,
-            CI_PROJECT_NAME: gitData.remote.project,
-            CI_PROJECT_TITLE: `${camelCase(gitData.remote.project)}`,
-            CI_PROJECT_PATH: `${gitData.remote.group}/${camelCase(gitData.remote.project)}`,
-            CI_PROJECT_PATH_SLUG: `${gitData.remote.group.replace(/\//g, "-")}-${gitData.remote.project}`,
-            CI_PROJECT_NAMESPACE: `${gitData.remote.group}`,
-            CI_PROJECT_VISIBILITY: "internal",
-            CI_PROJECT_ID: "1217",
-            CI_COMMIT_REF_PROTECTED: "false",
-            CI_COMMIT_BRANCH: gitData.commit.REF_NAME, // Not available in merge request or tag pipelines
-            CI_COMMIT_REF_NAME: gitData.commit.REF_NAME, // Tag or branch name
-            CI_COMMIT_REF_SLUG: gitData.commit.REF_NAME.replace(/[^a-z0-9]+/ig, "-").replace(/^-/, "").replace(/-$/, "").slice(0, 63).toLowerCase(),
-            CI_COMMIT_TITLE: "Commit Title", // First line of commit message.
-            CI_COMMIT_MESSAGE: "Commit Title\nMore commit text", // Full commit message
-            CI_COMMIT_DESCRIPTION: "More commit text",
-            CI_PIPELINE_SOURCE: "push",
-            CI_JOB_ID: `${this.jobId}`,
-            CI_PIPELINE_ID: `${this.pipelineIid + 1000}`,
-            CI_PIPELINE_IID: `${this.pipelineIid}`,
-            CI_SERVER_HOST: `${gitData.remote.domain}`,
-            CI_SERVER_URL: `https://${gitData.remote.domain}:443`,
-            CI_API_V4_URL: `https://${gitData.remote.domain}/api/v4`,
-            CI_PROJECT_URL: `https://${gitData.remote.domain}/${gitData.remote.group}/${gitData.remote.project}`,
-            CI_JOB_URL: `https://${gitData.remote.domain}/${gitData.remote.group}/${gitData.remote.project}/-/jobs/${this.jobId}`, // Changes on rerun.
-            CI_PIPELINE_URL: `https://${gitData.remote.domain}/${gitData.remote.group}/${gitData.remote.project}/pipelines/${this.pipelineIid}`,
-            CI_JOB_NAME: `${this.name}`,
-            CI_JOB_STAGE: `${this.stage}`,
-            GITLAB_CI: "false",
-        };
-
-        // Create expanded variables
-        const envs = {...globals.variables || {}, ...jobData.variables || {}, ...predefinedVariables, ...process.env};
-        const expandedGlobalVariables = Utils.expandVariables(globals.variables || {}, envs);
-        const expandedJobVariables = Utils.expandVariables(jobData.variables || {}, envs);
-
-        this.expandedVariables = {...expandedGlobalVariables, ...expandedJobVariables, ...homeVariables, ...predefinedVariables};
+        this.expandedVariables = opt.expandedVariables;
 
         // Set {when, allowFailure} based on rules result
         if (this.rules) {
@@ -326,7 +280,7 @@ export class Job {
         const safeJobName = Utils.safeJobName(this.name);
         const outputFilesPath = `${this.cwd}/.gitlab-ci-local/output/${safeJobName}.log`;
         const writeStreams = this.writeStreams;
-        let artifactsFrom = this.needs || this.dependencies;
+        const producers = this.producers;
         let time;
         let endTime;
 
@@ -431,11 +385,10 @@ export class Job {
             writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied source to container} in {magenta ${prettyHrtime(endTime)}}\n`);
         }
 
-        artifactsFrom = artifactsFrom ?? [];
-        if (artifactsFrom.length > 0) {
+        if (producers.length > 0) {
             time = process.hrtime();
             const promises = [];
-            for (const artifactFrom of artifactsFrom) {
+            for (const artifactFrom of producers) {
                 const artifactFromSafeName = Utils.safeJobName(artifactFrom);
                 if (this.imageName) {
                     promises.push(Utils.spawn(`docker cp ${this.cwd}/.gitlab-ci-local/artifacts/${artifactFromSafeName}/. ${this._containerId}:/builds/.`));
