@@ -365,14 +365,15 @@ export class Parser {
     static async downloadIncludeProjectFile(cwd: string, writeStreams: WriteStreams, project: string, ref: string, file: string, gitRemoteDomain: string): Promise<void> {
         const time = process.hrtime();
         fs.ensureDirSync(`${cwd}/.gitlab-ci-local/includes/${gitRemoteDomain}/${project}/${ref}/`);
+        const normalizedFile = file.replace(/^\/+/, "");
         try {
-            await Utils.spawn(`git archive --remote=git@${gitRemoteDomain}:${project}.git ${ref} ${file} | tar -xC .gitlab-ci-local/includes/${gitRemoteDomain}/${project}/${ref}/`, cwd);
+            await Utils.spawn(`git archive --remote=git@${gitRemoteDomain}:${project}.git ${ref} ${normalizedFile} | tar -xC .gitlab-ci-local/includes/${gitRemoteDomain}/${project}/${ref}/`, cwd);
         } catch (e) {
-            throw new ExitError(`Project include could not be fetched { project: ${project}, ref: ${ref}, file: ${file} }`);
+            throw new ExitError(`Project include could not be fetched { project: ${project}, ref: ${ref}, file: ${normalizedFile} }`);
         }
 
         const endTime = process.hrtime(time);
-        const remoteUrl = `${gitRemoteDomain}/${project}/${file}`;
+        const remoteUrl = `${gitRemoteDomain}/${project}/${normalizedFile}`;
         writeStreams.stdout(chalk`{cyan downloaded} {magentaBright ${remoteUrl}} in {magenta ${prettyHrtime(endTime)}}\n`);
     }
 

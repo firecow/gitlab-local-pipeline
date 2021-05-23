@@ -1,3 +1,4 @@
 ---
 include:
   - { project: firecow/gitlab-ci-local-includes, file: .gitlab-module.yml }
+  - { project: firecow/gitlab-ci-local-includes, file: /.gitlab-module.yml }
