@@ -329,8 +329,8 @@ export class Job {
 
             this._containerVolumeName = `gcl-${safeJobName}-${this.jobId}`;
             await Utils.spawn(`docker volume create ${this._containerVolumeName}`, this.cwd);
-            dockerCmd += `--volume ${this._containerVolumeName}:/builds/ `;
-            dockerCmd += "-w /builds/ ";
+            dockerCmd += `--volume ${this._containerVolumeName}:/builds/${safeJobName} `;
+            dockerCmd += `-w /builds/${safeJobName} `;
 
             for (const extraHost of this.extraHosts) {
                 dockerCmd += `--add-host=${extraHost} `;
@@ -350,7 +350,7 @@ export class Job {
                 this.cache.paths.forEach((path) => {
                     writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright mounting cache} for path ${path}\n`);
                     // /tmp/ location instead of .gitlab-ci-local/cache avoids the (unneeded) inclusion of cache folders when docker copy all files into the container, thus saving time for all jobs
-                    dockerCmd += `-v /tmp/gitlab-ci-local/cache/${this.cache.key}/${path}:/builds/${path} `;
+                    dockerCmd += `-v /tmp/gitlab-ci-local/cache/${this.cache.key}/${path}:/builds/${safeJobName}/${path} `;
                 });
             }
 
@@ -378,7 +378,10 @@ export class Job {
             this._containerId = containerId.replace(/\r?\n/g, "");
 
             time = process.hrtime();
-            await Utils.spawn(`docker cp .gitlab-ci-local/builds/.docker/. ${this._containerId}:/builds/`, this.cwd);
+            await Utils.spawn(`docker cp .gitlab-ci-local/builds/.docker/. ${this._containerId}:/builds/${safeJobName}`, this.cwd);
+            if (await fs.pathExists(`${this.cwd}/.gitlab-ci-local/file-variables`)) {
+                await Utils.spawn(`docker cp .gitlab-ci-local/file-variables//. ${this._containerId}:/file-variables/`, this.cwd);
+            }
             this.refreshLongRunningSilentTimeout(writeStreams);
             endTime = process.hrtime(time);
             writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied source to container} in {magenta ${prettyHrtime(endTime)}}\n`);
@@ -390,7 +393,7 @@ export class Job {
             for (const producer of this.producers) {
                 const safeProducer = Utils.safeJobName(producer);
                 if (this.imageName) {
-                    promises.push(Utils.spawn(`docker cp ${this.cwd}/.gitlab-ci-local/artifacts/${safeProducer}/. ${this._containerId}:/builds/.`));
+                    promises.push(Utils.spawn(`docker cp ${this.cwd}/.gitlab-ci-local/artifacts/${safeProducer}/. ${this._containerId}:/builds/${safeJobName}/.`));
                 } else {
                     const ensureDir = await fs.pathExists(`${this.cwd}/.gitlab-ci-local/artifacts/${safeProducer}`);
                     assert(ensureDir, chalk`Artifact cannot be copied. Did you run {blueBright ${this.name}}, before running {blueBright ${producer}}?`);
@@ -411,7 +414,7 @@ export class Job {
                 cmd += `export ${key}="${String(value).trim()}"\n`;
             }
         } else {
-            await Utils.spawn(`docker run --rm -w /builds/ -v ${this._containerVolumeName}:/builds/ debian:stable-slim bash -c "chown 0:0 -R . && chmod a+rw -R ."`);
+            await Utils.spawn(`docker run --rm -w /builds/${safeJobName} -v ${this._containerVolumeName}:/builds/${safeJobName} debian:stable-slim bash -c "chown 0:0 -R . && chmod a+rw -R ."`);
         }
 
         cmd += this.generateScriptCommands(scripts);
@@ -422,7 +425,7 @@ export class Job {
         await fs.chmod(`${this.cwd}/.gitlab-ci-local/builds/${safeJobName}/gcl-init`, "0755");
 
         if (this.imageName) {
-            await Utils.spawn(`docker cp .gitlab-ci-local/builds/${safeJobName}/gcl-init ${this._containerId}:/builds/`, this.cwd);
+            await Utils.spawn(`docker cp .gitlab-ci-local/builds/${safeJobName}/gcl-init ${this._containerId}:/builds/${safeJobName}`, this.cwd);
         }
 
         const cp = childProcess.spawn(this._containerId ? `docker start --attach -i ${this._containerId}` : "bash", {

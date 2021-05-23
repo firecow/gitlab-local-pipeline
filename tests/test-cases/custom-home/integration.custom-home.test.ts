@@ -2,7 +2,7 @@ import {MockWriteStreams} from "../../../src/mock-write-streams";
 import {handler} from "../../../src/handler";
 import chalk from "chalk";
 
-test("custom-home <test-job>", async () => {
+test.concurrent("custom-home <test-job>", async () => {
     const writeStreams = new MockWriteStreams();
     await handler({
         cwd: "tests/test-cases/custom-home",
@@ -19,7 +19,24 @@ test("custom-home <test-job>", async () => {
     expect(writeStreams.stdoutLines).toEqual(expect.arrayContaining(expected));
 });
 
-test("custom-home <test-normalize-key>", async () => {
+test.concurrent("custom-home <alpine-job>", async () => {
+    const writeStreams = new MockWriteStreams();
+    await handler({
+        cwd: "tests/test-cases/custom-home",
+        job: ["alpine-job"],
+        home: "tests/test-cases/custom-home/.home",
+    }, writeStreams);
+
+    const expected = [
+        chalk`{blueBright alpine-job        } {greenBright >} group-global-var-override-value`,
+        chalk`{blueBright alpine-job        } {greenBright >} project-group-var-override-value`,
+        chalk`{blueBright alpine-job        } {greenBright >} project-var-value`,
+        chalk`{blueBright alpine-job        } {greenBright >} Im content of a file variable`,
+    ];
+    expect(writeStreams.stdoutLines).toEqual(expect.arrayContaining(expected));
+});
+
+test.concurrent("custom-home <test-normalize-key>", async () => {
     const writeStreams = new MockWriteStreams();
     await handler({
         cwd: "tests/test-cases/custom-home",

@@ -6,6 +6,14 @@ test-job:
     - echo ${PROJECT_VAR}
     - cat ${GLOBAL_FILE_VAR}
 
+alpine-job:
+  image: alpine
+  script:
+    - echo ${GLOBAL_VAR}
+    - echo ${GROUP_VAR}
+    - echo ${PROJECT_VAR}
+    - cat ${GLOBAL_FILE_VAR}
+
 test-normalize-key:
   script:
     - echo ${GROUP_VAR}

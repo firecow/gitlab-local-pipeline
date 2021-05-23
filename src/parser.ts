@@ -190,7 +190,7 @@ export class Parser {
             if (fs.existsSync(fromFilePath)) {
                 await fs.ensureDir(`${cwd}/.gitlab-ci-local/file-variables/`);
                 await fs.copyFile(fromFilePath, `${cwd}/.gitlab-ci-local/file-variables/${path.basename(fromFilePath)}`);
-                variables[key] = `.gitlab-ci-local/file-variables/${path.basename(fromFilePath)}`;
+                variables[key] = `../../file-variables/${path.basename(fromFilePath)}`;
             }
         }
 

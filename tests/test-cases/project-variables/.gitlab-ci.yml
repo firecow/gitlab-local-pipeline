@@ -3,3 +3,9 @@ test-job:
   script:
     - echo ${PROJECT_VAR}
     - cat ${PROJECT_FILE_VAR}
+
+alpine-job:
+  image: alpine
+  script:
+    - echo ${PROJECT_VAR}
+    - cat ${PROJECT_FILE_VAR}
