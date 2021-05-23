@@ -58,6 +58,18 @@ export class Utils {
         }
     }
 
+    static getJobNamesFromPreviousStages(gitlabData: any, stages: readonly string[], currentStage: string) {
+        const jobNames: string[] = [];
+        const currentStageIndex = stages.indexOf(currentStage);
+        Utils.forEachRealJob(gitlabData, (jobName, jobData) => {
+            const stageIndex = stages.indexOf(jobData.stage);
+            if (stageIndex < currentStageIndex) {
+                jobNames.push(jobName);
+            }
+        });
+        return jobNames;
+    }
+
     static async getCoveragePercent(cwd: string, coverageRegex: string, jobName: string) {
         const content = await fs.readFile(`${cwd}/.gitlab-ci-local/output/${jobName}.log`, "utf8");
         const regex = new RegExp(coverageRegex.replace(/^\//, "").replace(/\/$/, ""), "m");

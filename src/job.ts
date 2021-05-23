@@ -280,7 +280,6 @@ export class Job {
         const safeJobName = Utils.safeJobName(this.name);
         const outputFilesPath = `${this.cwd}/.gitlab-ci-local/output/${safeJobName}.log`;
         const writeStreams = this.writeStreams;
-        const producers = this.producers;
         let time;
         let endTime;
 
@@ -385,17 +384,18 @@ export class Job {
             writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied source to container} in {magenta ${prettyHrtime(endTime)}}\n`);
         }
 
-        if (producers.length > 0) {
+        console.log(this.producers);
+        if (this.producers.length > 0) {
             time = process.hrtime();
             const promises = [];
-            for (const artifactFrom of producers) {
-                const artifactFromSafeName = Utils.safeJobName(artifactFrom);
+            for (const producer of this.producers) {
+                const safeProducer = Utils.safeJobName(producer);
                 if (this.imageName) {
-                    promises.push(Utils.spawn(`docker cp ${this.cwd}/.gitlab-ci-local/artifacts/${artifactFromSafeName}/. ${this._containerId}:/builds/.`));
+                    promises.push(Utils.spawn(`docker cp ${this.cwd}/.gitlab-ci-local/artifacts/${safeProducer}/. ${this._containerId}:/builds/.`));
                 } else {
-                    const ensureDir = await fs.pathExists(`${this.cwd}/.gitlab-ci-local/artifacts/${artifactFromSafeName}`);
-                    assert(ensureDir, chalk`Artifact cannot be copied. Did you run {blueBright ${this.name}}, before running {blueBright ${artifactFrom}}?`);
-                    promises.push(Utils.spawn(`cp -r --parents . ../../builds/${safeJobName}`, `${this.cwd}/.gitlab-ci-local/artifacts/${artifactFromSafeName}`));
+                    const ensureDir = await fs.pathExists(`${this.cwd}/.gitlab-ci-local/artifacts/${safeProducer}`);
+                    assert(ensureDir, chalk`Artifact cannot be copied. Did you run {blueBright ${this.name}}, before running {blueBright ${producer}}?`);
+                    promises.push(Utils.spawn(`cp -r --parents . ../../builds/${safeJobName}`, `${this.cwd}/.gitlab-ci-local/artifacts/${safeProducer}`));
                 }
             }
             await Promise.all(promises);

@@ -271,6 +271,8 @@ export class Parser {
         // Generate jobs and put them into stages
         Utils.forEachRealJob(gitlabData, (jobName, jobData) => {
             assert(this._gitData != null, "GitRemote isn't set in parser initJobs function");
+            const foundStage = this.stages.includes(jobData.stage);
+            assert(foundStage, chalk`{yellow stage:${jobData.stage}} not found for {blueBright ${jobName}}`);
 
             const projectDir = jobData.imageName ? "/builds/" : `${cwd}`;
             const jobId = Math.floor(Math.random() * 1000000);
@@ -280,7 +282,13 @@ export class Parser {
             const expandedJobVariables = Utils.expandVariables(jobData.variables || {}, envs);
             const expandedVariables = {...expandedGlobalVariables, ...expandedJobVariables, ...this._homeVariables, ...predefinedVariables};
             const jobNamePad = this.jobNamePad;
-            const producers = jobData.needs || jobData.dependencies || [];
+            let producers: string[] = jobData.needs || jobData.dependencies;
+            if (!producers) {
+                // Populate with all jobName from previous stage
+                producers = Utils.getJobNamesFromPreviousStages(gitlabData, this.stages, jobData.stage);
+            }
+            // Make sure potential producers actually has artifact paths.
+            producers = producers.filter((producer) => gitlabData[producer]?.artifacts?.paths != null);
 
             const jobOptions = {
                 extraHosts,
@@ -295,8 +303,6 @@ export class Parser {
                 producers,
             };
             const job = new Job(jobOptions);
-            const foundStage = this.stages.includes(job.stage);
-            assert(foundStage, chalk`{yellow stage:${job.stage}} not found for {blueBright ${job.name}}`);
             this._jobs.set(jobName, job);
         });
     }
