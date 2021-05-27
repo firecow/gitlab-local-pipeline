@@ -464,9 +464,9 @@ export class Job {
             let cpCmd = `shopt -s globstar\nmkdir -p ../../artifacts/${safeJobName}\n`;
             for (const artifactPath of this.artifacts.paths) {
                 const expandedPath = Utils.expandText(artifactPath, this.expandedVariables);
-                cpCmd += `echo Started copying builds/${expandedPath} to artifacts\n`;
+                cpCmd += `ls -all path\n`;
                 cpCmd += `cp -r --parents ${expandedPath} ../../artifacts/${safeJobName}\n`;
-                cpCmd += `echo Done copying ${expandedPath} to ../../artifacts/${safeJobName}\n`;
+                cpCmd += `ls -all ../../artifacts/${safeJobName}/path\n`;
             }
 
             time = process.hrtime();
@@ -474,7 +474,8 @@ export class Job {
             if (this.imageName) {
                 const {stdout: artifactsContainerId} = await Utils.spawn(`docker create -i -w /builds/${safeJobName} -v ${this._containerVolumeName}:/builds/${safeJobName} debian:stable-slim bash -c "${cpCmd}"`, this.cwd);
                 this._artifactsContainerId = artifactsContainerId.replace(/\r?\n/g, "");
-                await Utils.spawn(`docker start ${this._artifactsContainerId} --attach`);
+                const startOutput = await Utils.spawn(`docker start ${this._artifactsContainerId} --attach`);
+                console.log(startOutput.stdout);
                 await Utils.spawn(`docker cp ${this._artifactsContainerId}:/artifacts/${safeJobName}/. .gitlab-ci-local/artifacts/${safeJobName}/.`, this.cwd);
             } else {
                 await Utils.spawn(`${cpCmd}`, `${this.cwd}/.gitlab-ci-local/builds/${safeJobName}`);

@@ -1,0 +1,21 @@
+---
+pre-job:
+  stage: .pre
+  image: alpine
+  cache:
+    key: cache
+    paths:
+      - path/
+  artifacts:
+    paths:
+      - path/
+  script:
+    - mkdir -p path/
+    - echo "Pre something" > path/log.txt
+    - test -f path/log.txt
+
+test-job:
+  needs: [pre-job]
+  image: alpine
+  script:
+    - test -f path/log.txt
