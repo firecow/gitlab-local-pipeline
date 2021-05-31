@@ -381,7 +381,7 @@ export class Job {
             time = process.hrtime();
             await Utils.spawn(`docker cp .gitlab-ci-local/builds/.docker/. ${this._containerId}:/builds/${safeJobName}`, this.cwd);
             if (await fs.pathExists(`${this.cwd}/.gitlab-ci-local/file-variables`)) {
-                await Utils.spawn(`docker cp .gitlab-ci-local/file-variables//. ${this._containerId}:/file-variables/`, this.cwd);
+                await Utils.spawn(`docker cp .gitlab-ci-local/file-variables/. ${this._containerId}:/file-variables/`, this.cwd);
             }
             this.refreshLongRunningSilentTimeout(writeStreams);
             endTime = process.hrtime(time);
@@ -465,9 +465,7 @@ export class Job {
             let cpCmd = `shopt -s globstar\nmkdir -p ../../artifacts/${safeJobName}\n`;
             for (const artifactPath of this.artifacts.paths) {
                 const expandedPath = Utils.expandText(artifactPath, this.expandedVariables);
-                cpCmd += `ls -all path\n`;
                 cpCmd += `cp -r --parents ${expandedPath} ../../artifacts/${safeJobName}\n`;
-                cpCmd += `ls -all ../../artifacts/${safeJobName}/path\n`;
             }
 
             time = process.hrtime();
