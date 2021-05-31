@@ -67,7 +67,7 @@ export function image(gitlabData: any) {
         if (expandedImage) {
             jobData.image = {
                 name: typeof expandedImage === "string" ? expandedImage : expandedImage.name,
-                entrypoint: typeof expandedImage === "string" ? null : expandedImage.entrypoint,
+                entrypoint: expandedImage.entrypoint,
             };
         }
     });

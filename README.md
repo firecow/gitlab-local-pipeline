@@ -55,6 +55,15 @@ chmod +x /usr/local/bin/gitlab-ci-local
 exit
 ```
 
+Or install it only for the current user
+
+```bash
+curl -L https://github.com/firecow/gitlab-ci-local/releases/latest/download/linux.gz | gunzip -c > ~/.local/bin/gitlab-ci-local
+chmod +x ~/.local/bin/gitlab-ci-local
+```
+
+You'll be able to run `gitlab-ci-local` if the environment variable `$PATH` contains `~/.local/bin/`. If it isn't, please refer to the documentation of your shell to add it. 
+
 ### Macos
 
 Download and put binary in `/usr/local/bin`
