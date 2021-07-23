@@ -6,6 +6,12 @@ test-job:
     - echo ${PROJECT_VAR}
     - cat ${GLOBAL_FILE_VAR}
 
+# Test file variables are working with docker-executor jobs
+test-image:
+  image: alpine
+  script:
+    - cat ${GLOBAL_FILE_VAR}
+
 test-normalize-key:
   script:
     - echo ${GROUP_VAR}

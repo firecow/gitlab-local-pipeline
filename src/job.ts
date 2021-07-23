@@ -466,10 +466,16 @@ export class Job {
             this._containerId = containerId.replace(/\r?\n/g, "");
 
             time = process.hrtime();
+            // Copy source files into container.
             await Utils.spawn(`docker cp .gitlab-ci-local/builds/.docker/. ${this._containerId}:/builds/`, this.cwd);
             this.refreshLongRunningSilentTimeout(writeStreams);
+
+            // Copy file variables into container.
+            await Utils.spawn(`docker cp /tmp/gitlab-ci-local-file-variables ${this._containerId}:/tmp/`, this.cwd);
+            this.refreshLongRunningSilentTimeout(writeStreams);
+
             endTime = process.hrtime(time);
-            writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied source to container} in {magenta ${prettyHrtime(endTime)}}\n`);
+            writeStreams.stdout(chalk`${this.chalkJobName} {magentaBright copied to container} in {magenta ${prettyHrtime(endTime)}}\n`);
 
             if (artifactsFrom === null || artifactsFrom.length > 0) {
                 time = process.hrtime();

@@ -188,9 +188,9 @@ export class Parser {
 
             const fromFilePath = value.replace(/^~\/(.*)/, `${homeDir}/$1`);
             if (fs.existsSync(fromFilePath)) {
-                await fs.ensureDir(`${cwd}/.gitlab-ci-local/file-variables/`);
-                await fs.copyFile(fromFilePath, `${cwd}/.gitlab-ci-local/file-variables/${path.basename(fromFilePath)}`);
-                variables[key] = `.gitlab-ci-local/file-variables/${path.basename(fromFilePath)}`;
+                await fs.ensureDir("/tmp/gitlab-ci-local-file-variables/");
+                await fs.copyFile(fromFilePath, `/tmp/gitlab-ci-local-file-variables/${path.basename(fromFilePath)}`);
+                variables[key] = `/tmp/gitlab-ci-local-file-variables/${path.basename(fromFilePath)}`;
             }
         }
 
